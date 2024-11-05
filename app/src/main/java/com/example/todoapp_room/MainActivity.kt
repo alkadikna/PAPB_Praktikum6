@@ -79,6 +79,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun TodoApp(viewModel: TaskViewModel, modifier: Modifier = Modifier) {
     var taskTitle by remember { mutableStateOf("") }
+    var editingTask by remember { mutableStateOf<Task?>(null) }
     val tasks by viewModel.getAllTasks.collectAsState(initial = emptyList())
     val context = LocalContext.current
 
@@ -113,14 +114,21 @@ fun TodoApp(viewModel: TaskViewModel, modifier: Modifier = Modifier) {
                     .padding(16.dp)
                     .background(Color.LightGray),
                 maxLines = 1,
-                label = { Text("Enter task") }
+                label = { Text(if (editingTask == null) "Enter task" else "Edit task") }
             )
             Spacer(modifier = Modifier.height(8.dp))
             Button(
                 onClick = {
                     if (taskTitle.isNotEmpty()) {
-                        viewModel.addTask(Task(title = taskTitle))
-                        taskTitle = ""
+                        if (editingTask != null) {
+                            // Update the existing task
+                            viewModel.updateTask(editingTask!!.copy(title = taskTitle))
+                            editingTask = null // Reset the editing state
+                        } else {
+                            // Add a new task
+                            viewModel.addTask(Task(title = taskTitle))
+                        }
+                        taskTitle = "" // Clear the TextField
                     }
                 },
                 modifier = Modifier
@@ -130,7 +138,12 @@ fun TodoApp(viewModel: TaskViewModel, modifier: Modifier = Modifier) {
                     containerColor = Color(0xFF3B3030),
                 )
             ) {
-                Text("Save", color = Color(0xFFFFF0D1), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    if (editingTask == null) "Save" else "Update",
+                    color = Color(0xFFFFF0D1),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -145,6 +158,11 @@ fun TodoApp(viewModel: TaskViewModel, modifier: Modifier = Modifier) {
                         onDeleteTask = {
                             viewModel.deleteTask(task)
                             Toast.makeText(context, "${task.title} has been deleted!", Toast.LENGTH_SHORT).show()
+                        },
+                        onTaskClick = {
+                            // Populate the TextField with the selected task's title for editing
+                            taskTitle = task.title
+                            editingTask = task
                         }
                     )
                 }
@@ -153,17 +171,18 @@ fun TodoApp(viewModel: TaskViewModel, modifier: Modifier = Modifier) {
     }
 }
 
-
 @Composable
 fun TaskRow(
     task: Task,
     onCheckedChange: (Boolean) -> Unit,
-    onDeleteTask: () -> Unit
+    onDeleteTask: () -> Unit,
+    onTaskClick: () -> Unit // New callback for handling task click
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp),
+            .padding(8.dp)
+            .clickable { onTaskClick() }, // Trigger task editing on click
         verticalAlignment = Alignment.CenterVertically
     ) {
         Checkbox(
@@ -188,6 +207,7 @@ fun TaskRow(
         )
     }
 }
+
 
 
 //@Preview(showBackground = true)
